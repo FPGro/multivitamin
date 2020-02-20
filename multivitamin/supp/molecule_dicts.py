@@ -19,7 +19,7 @@ atomic_number_to_element = {
 # gap to gap translation is necessary to preserve them 
 
 element_to_size = {
-    "H"  : "1",
+    "H"  : "2",
     "B"  : "10",
     "C"  : "12",
     "N"  : "14",

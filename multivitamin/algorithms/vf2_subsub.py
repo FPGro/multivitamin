@@ -35,10 +35,12 @@ class subVF2():
 
         # Initializing the two core dictionaries that store each node of the
         # Corresponding graph as key and the node of the other graph where it maps
-        # As soon as it mapps for now we use None as inital value
+        # As soon as it maps for now we use None as inital value
         self.core_s = self.small_g.gen_dict( None )
         self.core_l = self.large_g.gen_dict( None )
 
+        # starting combinations 
+        self.start = self.cart_p2(self.core_l.keys(), self.core_s.keys())
 
         self.result_graphs = []
         self.results = []
@@ -50,10 +52,11 @@ class subVF2():
 
         # progress bar
         self.i = 0
-        print_progress_bar(self.i, len(self.large_g.nodes), prefix = 'Progress:', suffix = 'Complete', length = 50)
+#         print_progress_bar(self.i, len(self.large_g.nodes), prefix = 'Progress:', suffix = 'Complete', length = 50)
 
 
     def match( self, last_mapped=(None, None), depth=0 ):
+#         print("- Entered Matching at depth {}\n".format(depth))
         if self.s_in_small_g():
             self.found_complete_matching = True
             scoring = Scoring( len(self.small_g.nodes), len(self.large_g.nodes), [self.core_s], self.scoring_matrix )
@@ -61,31 +64,35 @@ class subVF2():
 
             self.append_result_subgraph( scoring.get_best_result() )
             self.restore_ds( last_mapped[0], last_mapped[1], depth )
-
+            
+#             print("<<< pop {}\n".format(last_mapped))
             return
 
         p = self.compute_p( depth )
+#         print("??? candidate pairs:\t{}\n".format(p))
 
         found_pair = False
         for tup in p:
-            if depth == 0 and not self.found_complete_matching:
-                print_progress_bar(self.i, len(self.large_g.nodes), prefix = 'Estimated progress:', suffix = 'Aligning {} and {}'.format( self.small_g.id, self.large_g.id ), length = 50)
-                self.i += 1
+#             if depth == 0 and not self.found_complete_matching:
+#                 print_progress_bar(self.i, len(self.large_g.nodes), prefix = 'Estimated progress:', suffix = 'Aligning {} and {}'.format( self.small_g.id, self.large_g.id ), length = 50)
+#                 self.i += 1
 
-            if self.is_feasible( tup[0], tup[1], depth ):
+            if self.is_feasible( tup[0], tup[1]):
+
                 found_pair = True
                 self.compute_s_( tup[0], tup[1] )
-
+#                 print(">>> push {}\n".format(tup))
                 self.match( tup, depth+1 )
 
         # if the matching isn't continued and the current depth is higher than/
         # equal to the max depth reached until now: save the subgraph
         if not found_pair and not self.found_complete_matching:
-            if depth > self.max_depth_matching:
-                self.max_depth_matching = depth
-                self.biggest_matches = []
-                self.biggest_matches.append(self.core_s.copy())
-            elif depth == self.max_depth_matching:
+            if depth >= self.max_depth_matching:
+                if depth > self.max_depth_matching:
+#                     print("\n!!! clearing max matchings, new max_depth {}".format(depth))
+                    self.max_depth_matching = depth
+                    self.biggest_matches = []
+#                 print("\n+ added new max matching:\n{}\n".format(self.core_s))
                 self.biggest_matches.append(self.core_s.copy())
 
         if depth > 1:
@@ -100,9 +107,11 @@ class subVF2():
             scoring.score()
 
             self.append_result_subgraph( scoring.get_best_result() )
-            print_progress_bar(len(self.large_g.nodes), len(self.large_g.nodes), prefix = 'Estimated progress:', suffix = 'Aligning {} and {}'.format( self.small_g.id, self.large_g.id ), length = 50)
-
+#             print_progress_bar(len(self.large_g.nodes), len(self.large_g.nodes), prefix = 'Estimated progress:', suffix = 'Aligning {} and {}'.format( self.small_g.id, self.large_g.id ), length = 50)
+            
+#             print("<<< pop {}\n".format(last_mapped))
             return
+#         print("<<< pop {}\n".format(last_mapped))
 
 
     def s_in_small_g(self):
@@ -125,11 +134,8 @@ class subVF2():
         '''
 
         if depth == 0:
-            
-            diff_l = [n for n in self.core_l if not self.core_l[n]]
-            diff_s = [n for n in self.core_s if not self.core_s[n]]
-            
-            return self.cart_p2(diff_l, max(diff_s))
+            print("handed over starting values")
+            return self.start
             
         else:
             # all mapped nodes are in m_l (large_g) or m_s (small_g)
@@ -150,10 +156,12 @@ class subVF2():
                         diff_s.add(neigh)
     
     
-            return self.cart_p2(diff_l, max(diff_s))
+            return self.cart_p2(diff_l, diff_s)
 
 
-    def is_feasible( self, n ,m, depth ):
+
+    def is_feasible( self, n ,m ):
+
         '''
         first, checks zero_look ahead (if there are neighbours of the candidate pair that
         are in the current mapping, they have to be mapped to each other) then, checks some
@@ -167,7 +175,7 @@ class subVF2():
             self.zero_look_ahead(m, n, self.core_s) ) ):
             return False
 
-        return check_semantics( n, m ) # this function is imported from multivitamin/custom.py
+        return True
 
 
     def compute_s_(self, n, m):
@@ -188,24 +196,15 @@ class subVF2():
         if any((not n, not m)):
             raise(Exception("None restored"))
 
+
         self.core_l[n] = None
         self.core_s[m] = None
 
 
+
 # HELPER FUNCTIONS ------------------------------------------------------------
 
-    def cart_p1( self, node_dict, t_max ):
-        """
-        creates the cartesian product of the node set in node_dict that are in terminal sets
-        (which means they are mapped to None in core and do not have a depth of 0)
-        """
-        cp = set()
-        for node in node_dict:
-            if not self.core_l[node] and not node_dict[node] == 0:
-                cp.add( (node, t_max) )
-        return cp
-
-    def cart_p2( self, node_dict, max_free_node ):
+    def cart_p2( self, node_dict, max_free_nodes ):
             """
             creates the cartesian product of the node set in node_dict that are not in the
             current mapping and not in terminal sets (which means they are mapped to None
@@ -216,7 +215,10 @@ class subVF2():
             cp = set()
             for node in node_dict:
                 if not self.core_l[node]:
-                    cp.add( (node, max_free_node) )
+                    for max_free_node in max_free_nodes:
+                        if not self.core_s[max_free_node]:
+                            if check_semantics(node, max_free_node):
+                                cp.add( (node, max_free_node) )
             return cp
 
 

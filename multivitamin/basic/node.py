@@ -138,7 +138,7 @@ class Node():
         label_string = label_string[:-1]
         label_string += " "
 
-        return  self.get_node_id_string() + "   '" + label_string + "'   (" + str(neighbours_string) + ")"
+        return  self.get_node_id_string() + " '" + label_string + "'"
 
     def __repr__(self):
         return self.__str__()
