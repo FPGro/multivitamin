@@ -45,7 +45,7 @@ class Scoring():
         alignment with labels (same labels are rewarded, gaps are punished)
         '''
 
-        self.gap_score = 0
+        self.gap_score = -1
         exact_match_score = 3
 
         for res in self.results:
